@@ -1,0 +1,23 @@
+'''
+Created on Aug 26, 2010
+
+@author: jsalvatier
+'''
+import database
+
+import plotting
+
+
+def plot_results(db, runid, start, end, fields = [ 'residualPosition', 'endPnL', 'strategyVolume']):
+    
+    run_parameters = database.run_parameters(db, runid)
+
+    model_parameters = database.model_parameters(db, run_parameters['modelId'])
+    info = database.instrument_information(db, start, model_parameters['group_name'])
+    
+    results = [database.run_statistics_15_instrument(db, runid, iinfo['instrid'], start, end) for instrid, iinfo in info.iteritems()]
+
+    names   = [iinfo['symbol'] for instrid, iinfo in info.iteritems()]
+    plotting.results_plot(results, names, fields)
+    
+    

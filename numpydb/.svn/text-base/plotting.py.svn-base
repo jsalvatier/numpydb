@@ -1,0 +1,56 @@
+'''
+Created on Aug 23, 2010
+
+@author: jsalvatier
+'''
+import pylab 
+import math
+import itertools 
+
+def plot_result_set(results, field):
+    """ plots a list of result arrays plotting just the specified field. Uses different subplots for each result"""
+    numplots = len(results)
+    
+    n = math.ceil(math.sqrt(numplots))
+
+    
+    for i in range(numplots): 
+        pylab.subplot(n, n, i)
+        
+        pylab.plot(results[i][field])
+
+        
+    pylab.show()
+    
+colors = ('red','green','blue','orange', 'purple')
+linestyles = ('-','--',':')
+linewidths = (1, 2)
+    
+def styles():
+    """returns an iterable of styles that can be used for lines to distinguish them"""
+    
+    return ( {'c' : color, 'ls' : style, 'lw' : width} for color, style, width in itertools.product(colors, linestyles, linewidths))
+
+
+
+def results_plot(results, names, fields = ['PnL', 'residual', 'position']):
+    """ plot the fields in different subplots for all instruments """
+    
+    
+    nfields = len(fields)
+    fig_dim = math.ceil(math.sqrt(nfields))
+    
+    
+    for result in results :
+        
+        for i in xrange(nfields):
+            pylab.subplot(fig_dim,fig_dim, i + 1)
+            pylab.title(fields[i])
+            pylab.plot(result[fields[i]])
+            #if i == nfields - 1:
+
+            #    pylab.legend(names)
+            
+    pylab.show()
+    
+    

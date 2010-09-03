@@ -1,0 +1,77 @@
+'''
+Created on Aug 18, 2010
+
+@author: jsalvatier
+
+'''
+
+import pyodbc
+import numpy as np
+from datetime import datetime
+import decimal
+
+default_DSN = "nysetaq"
+
+def get_connection():
+    return pyodbc.connect("DSN=" + default_DSN)
+
+def group_members(db, group_name):
+    """ returns the instrids for the instruments in the specified group"""
+    rows = db.cursor().execute("select instrid from instrumentgroupmembers where group_name = '" + group_name + "';")
+    
+    return [row[0] for row in rows] 
+    
+    
+date_format = '%Y-%m-%d'
+nfactors = 10
+
+def _time_column(date, name):
+    return "TIME_TO_SEC(timediff(" + name + ",'" +  str(datetime.strptime(date, date_format)) + "'))/(60*60*24)"
+
+type_conversions = {decimal.Decimal : float}
+def _convert(type):
+    try :
+        return type_conversions[type]
+    except:
+        return type
+        
+
+def _stats_from_db(db, command):
+    cursor = db.cursor()
+    cursor.execute(command)
+    
+    column_dtypes = [(col[0], _convert(col[1])) for col in cursor.description]
+    column_dtypes[0]= ('time', float)
+    
+    return np.fromiter((tuple (row) for row in cursor), dtype=column_dtypes, count = cursor.rowcount)
+
+
+def _columns(prefix, count, suffix):
+    return ",".join([ prefix + str(n + 1) + suffix for n in xrange(count)])
+
+def run_statistics_15_instrument(db, runid, instrid, start, end):
+    
+    return _stats_from_db(db, 'select ' + _time_column(start,'datetimeEnd') +', periodPnL, endPnL, strategyVolume, residual, averageResidual, residualPosition, periodVolatilityEstimate from runstatisticsinstrumentm15 where runid = ' + str(runid) + ' and instrid =' + str(instrid) + ' and datetimeStart >\'' +  start + '\' and datetimeEnd < \'' +  end + '\';')   
+    
+def run_statistics_15_portfolio(db, runid, start, end):
+    return _stats_from_db(db, 'select ' + _time_column(start,'datetimeEnd') +', periodPnL, endPnL,' + _columns('factor',nfactors,'price') + ',' + _columns('factor',nfactors,'periodVolEst') + ' from runstatisticsportfoliom15 where runid = ' + str(runid) + ' and datetimeStart >\'' +  start + '\' and datetimeEnd < \'' +  end + '\';')   
+  
+def price_data(db, instrid, start, end):
+    return _stats_from_db(db, 'select ' + _time_column(start,'`time`') + ', bid, offer, bidsize, offersize, `mode`,exchange, MMID  from quoteTable where quoteTable.instrid = ' +  str(instrid)  + " and time > '" +  start + "' and time < '" + end + "';")
+    
+def price_data_sampled(db, instrid, start, end):
+    return _stats_from_db(db, 'select ' + _time_column(start, 'time') + ", price,missing from sampledAssetPriceTable where instrid = " + str(instrid) + " and time > '" +  start + "' and time < '" + end + "' order by time;")
+
+def run_parameters(db, runid):
+    """ returns the parameters for the specified run """
+    cursor = db.cursor()
+    cursor.execute('select parameter, value from runs as r join runparameters as rp on r.runid = ' + str(runid) + ';')
+    
+    parameters = {}
+    for row in cursor:
+        parameters[row[0]] = row[1]
+        
+    return parameters
+
+
+
